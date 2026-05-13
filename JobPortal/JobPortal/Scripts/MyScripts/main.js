@@ -148,11 +148,11 @@ function validateLogoUpload(input) {
         var phoneNumber = input.value;
         var errorSpan = document.getElementById('error-phone');
 
-        if (/^\d{10}$/.test(phoneNumber)) {
+        if (/^\d{4}-\d{7}$/.test(phoneNumber)) {
             errorSpan.textContent = '';
             return true;
         } else {
-            errorSpan.textContent = 'Please enter a valid 10-digit phone number.';
+            errorSpan.textContent = 'Please enter a valid phone number in the format 0300-1234567.';
             return false;
         }
     }
