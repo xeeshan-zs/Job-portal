@@ -1,0 +1,72 @@
+-----------Exception Details on  5/13/2026 9:08:44 AM-----------------
+-------------------------------------------------------------------------------------
+
+
+
+Log Written Date: 5/13/2026 9:08:44 AM
+
+Error Line No : line 76
+
+Error Message: SaltParseException
+
+Exception Type: BCrypt.Net.SaltParseException
+
+Error Location : Invalid salt version
+
+ Error Page Url: http://localhost:50000/Home/Login
+
+User Host IP: 
+
+
+--------------------------------*End*------------------------------------------
+
+
+
+-----------Exception Details on  5/13/2026 9:08:49 AM-----------------
+-------------------------------------------------------------------------------------
+
+
+
+Log Written Date: 5/13/2026 9:08:49 AM
+
+Error Line No : line 76
+
+Error Message: SaltParseException
+
+Exception Type: BCrypt.Net.SaltParseException
+
+Error Location : Invalid salt version
+
+ Error Page Url: http://localhost:50000/Home/Login
+
+User Host IP: 
+
+
+--------------------------------*End*------------------------------------------
+
+
+
+-----------Exception Details on  5/13/2026 9:09:02 AM-----------------
+-------------------------------------------------------------------------------------
+
+
+
+Log Written Date: 5/13/2026 9:09:02 AM
+
+Error Line No : line 76
+
+Error Message: SaltParseException
+
+Exception Type: BCrypt.Net.SaltParseException
+
+Error Location : Invalid salt version
+
+ Error Page Url: http://localhost:50000/Home/Login
+
+User Host IP: 
+
+
+--------------------------------*End*------------------------------------------
+
+
+
