@@ -164,91 +164,142 @@ Write-Host ""
 Write-Host "  Database setup complete!" -ForegroundColor Green
 
 # ─────────────────────────────────────────────
-#  STEP 4 – NuGet package restore
+#  STEP 4 – Find MSBuild (needed for restore + compile)
 # ─────────────────────────────────────────────
 Write-Host ""
-Write-Host "[4/6] Restoring NuGet packages..." -ForegroundColor Yellow
+Write-Host "[4/6] Locating MSBuild..." -ForegroundColor Yellow
+
+$msbuildExe = $null
+try { $msbuildExe = (Get-Command msbuild -ErrorAction Stop).Source } catch {}
+
+if (-not $msbuildExe) {
+    # Search Visual Studio installations (2017, 2019, 2022)
+    $vsroots = @(
+        "${env:ProgramFiles(x86)}\Microsoft Visual Studio",
+        "$env:ProgramFiles\Microsoft Visual Studio"
+    )
+    foreach ($vsr in $vsroots) {
+        if (Test-Path $vsr) {
+            # Prefer the latest MSBuild
+            $found = Get-ChildItem -Path $vsr -Filter "msbuild.exe" -Recurse -ErrorAction SilentlyContinue |
+                     Sort-Object FullName -Descending |
+                     Select-Object -First 1
+            if ($found) { $msbuildExe = $found.FullName; break }
+        }
+    }
+}
+
+# Also check standalone Build Tools location
+if (-not $msbuildExe) {
+    $btPaths = @(
+        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools\MSBuild\Current\Bin\msbuild.exe",
+        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2019\BuildTools\MSBuild\Current\Bin\msbuild.exe",
+        "C:\Windows\Microsoft.NET\Framework\v4.0.30319\msbuild.exe",
+        "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\msbuild.exe"
+    )
+    foreach ($p in $btPaths) {
+        if (Test-Path $p) { $msbuildExe = $p; break }
+    }
+}
+
+if ($msbuildExe) {
+    Write-Host "  MSBuild found: $msbuildExe" -ForegroundColor Green
+} else {
+    Write-Host "  MSBuild not found -- will skip build step." -ForegroundColor Yellow
+    Write-Host "  You will need to open the .sln in Visual Studio and build it manually." -ForegroundColor Yellow
+}
+
+# ─────────────────────────────────────────────
+#  STEP 4b – NuGet restore
+# ─────────────────────────────────────────────
+Write-Host ""
+Write-Host "  Restoring NuGet packages..." -ForegroundColor Yellow
 
 $nugetExe = $null
-
-# 1) Try nuget.exe already on PATH
 try { $nugetExe = (Get-Command nuget -ErrorAction Stop).Source } catch {}
 
-# 2) Try well-known locations (Visual Studio ships nuget.exe)
 if (-not $nugetExe) {
     $nugetCandidates = @(
         "$env:ProgramFiles\NuGet\nuget.exe",
         "${env:ProgramFiles(x86)}\NuGet\nuget.exe",
         "$env:LOCALAPPDATA\NuGet\nuget.exe"
     )
-    # Also search inside Visual Studio install folders
-    $vsroots = @(
-        "${env:ProgramFiles(x86)}\Microsoft Visual Studio",
-        "$env:ProgramFiles\Microsoft Visual Studio"
-    )
-    foreach ($vsr in $vsroots) {
+    foreach ($vsr in @("${env:ProgramFiles(x86)}\Microsoft Visual Studio","$env:ProgramFiles\Microsoft Visual Studio")) {
         if (Test-Path $vsr) {
-            $found = Get-ChildItem -Path $vsr -Filter "nuget.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($found) { $nugetCandidates += $found.FullName }
+            $f = Get-ChildItem -Path $vsr -Filter "nuget.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($f) { $nugetCandidates += $f.FullName }
         }
     }
-    foreach ($n in $nugetCandidates) {
-        if (Test-Path $n) { $nugetExe = $n; break }
-    }
-}
-
-# 3) Try msbuild /t:Restore as a fallback
-$msbuildExe = $null
-try { $msbuildExe = (Get-Command msbuild -ErrorAction Stop).Source } catch {}
-if (-not $msbuildExe) {
-    $vsroots = @(
-        "${env:ProgramFiles(x86)}\Microsoft Visual Studio",
-        "$env:ProgramFiles\Microsoft Visual Studio"
-    )
-    foreach ($vsr in $vsroots) {
-        if (Test-Path $vsr) {
-            $found = Get-ChildItem -Path $vsr -Filter "msbuild.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($found) { $msbuildExe = $found.FullName; break }
-        }
-    }
+    foreach ($n in $nugetCandidates) { if (Test-Path $n) { $nugetExe = $n; break } }
 }
 
 if ($nugetExe) {
-    Write-Host "  Using nuget.exe: $nugetExe" -ForegroundColor DarkGray
-    $nugetOut = & $nugetExe restore $SOLUTION 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "  NuGet restore succeeded." -ForegroundColor Green
-    } else {
-        Write-Host "  NuGet restore had issues (non-fatal, continuing):" -ForegroundColor Yellow
-        $nugetOut | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
-    }
+    Write-Host "  nuget.exe: $nugetExe" -ForegroundColor DarkGray
+    & $nugetExe restore $SOLUTION 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+    Write-Host "  NuGet restore done." -ForegroundColor Green
 } elseif ($msbuildExe) {
-    Write-Host "  nuget.exe not found. Using msbuild /t:Restore..." -ForegroundColor DarkGray
-    $msbOut = & $msbuildExe $SOLUTION /t:Restore /v:minimal 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "  msbuild restore succeeded." -ForegroundColor Green
-    } else {
-        Write-Host "  msbuild restore had issues (non-fatal, continuing)." -ForegroundColor Yellow
-    }
+    Write-Host "  Using msbuild /t:Restore..." -ForegroundColor DarkGray
+    & $msbuildExe $SOLUTION /t:Restore /v:minimal 2>&1 | Out-Null
+    Write-Host "  Restore done." -ForegroundColor Green
 } else {
-    Write-Host "  nuget.exe and msbuild not found. Will download nuget.exe..." -ForegroundColor Yellow
-    $nugetDest = Join-Path $env:TEMP "nuget.exe"
+    # Download nuget.exe on the fly
+    Write-Host "  Downloading nuget.exe..." -ForegroundColor DarkGray
+    $nugetTemp = Join-Path $env:TEMP "nuget.exe"
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        Invoke-WebRequest -Uri "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe" `
-                          -OutFile $nugetDest -UseBasicParsing
-        Write-Host "  Downloaded nuget.exe to temp." -ForegroundColor DarkGray
-        $nugetOut = & $nugetDest restore $SOLUTION 2>&1
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "  NuGet restore succeeded." -ForegroundColor Green
-        } else {
-            Write-Host "  NuGet restore had issues. Continuing anyway." -ForegroundColor Yellow
-        }
+        Invoke-WebRequest "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe" `
+            -OutFile $nugetTemp -UseBasicParsing
+        & $nugetTemp restore $SOLUTION 2>&1 | Out-Null
+        Write-Host "  NuGet restore done." -ForegroundColor Green
+        $nugetExe = $nugetTemp
     } catch {
-        Write-Host "  Could not download nuget.exe. Continuing without package restore." -ForegroundColor Yellow
-        Write-Host "  If the app shows a CodeDom error, open the .sln in Visual Studio and" -ForegroundColor Yellow
-        Write-Host "  do: Build > Restore NuGet Packages, then re-run SETUP.bat." -ForegroundColor Yellow
+        Write-Host "  Could not restore packages (no internet / no nuget). Continuing." -ForegroundColor Yellow
     }
+}
+
+# ─────────────────────────────────────────────
+#  STEP 4c – BUILD the project (creates bin/ DLLs)
+# ─────────────────────────────────────────────
+Write-Host ""
+Write-Host "  Compiling project (this may take 30-60 seconds)..." -ForegroundColor Yellow
+
+if ($msbuildExe) {
+    $buildOut  = & $msbuildExe $SOLUTION /p:Configuration=Debug /v:minimal /nologo 2>&1
+    $buildCode = $LASTEXITCODE
+
+    foreach ($line in $buildOut) {
+        if ($line -match "error ") {
+            Write-Host "  $line" -ForegroundColor Red
+        } elseif ($line -match "warning ") {
+            Write-Host "  $line" -ForegroundColor Yellow
+        } elseif ($line -match "Build succeeded") {
+            Write-Host "  $line" -ForegroundColor Green
+        }
+    }
+
+    if ($buildCode -eq 0) {
+        Write-Host "  Build SUCCEEDED. DLLs are in bin/." -ForegroundColor Green
+    } else {
+        Write-Host ""
+        Write-Host "  Build FAILED (exit $buildCode)." -ForegroundColor Red
+        Write-Host "  Full build output:" -ForegroundColor Yellow
+        $buildOut | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+        Write-Host ""
+        Write-Host "  Try opening JobPortal\JobPortal.sln in Visual Studio," -ForegroundColor Yellow
+        Write-Host "  do Build > Restore NuGet Packages, then Build > Build Solution." -ForegroundColor Yellow
+        Write-Host "  Then re-run SETUP.bat." -ForegroundColor Yellow
+        exit 1
+    }
+} else {
+    Write-Host ""
+    Write-Host "  IMPORTANT: MSBuild not found -- project was NOT compiled." -ForegroundColor Red
+    Write-Host "  The app will show a 'Could not load type' error until you build it." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  To fix: Open  JobPortal\JobPortal.sln  in Visual Studio" -ForegroundColor Cyan
+    Write-Host "          Press Ctrl+Shift+B to build, then re-run SETUP.bat." -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "  OR install Visual Studio Build Tools (free):" -ForegroundColor Cyan
+    Write-Host "  https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022" -ForegroundColor Cyan
 }
 
 # ─────────────────────────────────────────────
