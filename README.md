@@ -1,5 +1,36 @@
 # Job Portal Web Application
 
+## ⚡ Quick Setup on a New Machine
+
+> **Clone the repo → double-click ONE file → done.**
+
+```
+1. Clone the repo
+2. Double-click  SETUP.bat
+3. Open http://localhost:5050
+```
+
+`SETUP.bat` will automatically:
+- Detect your local SQL Server instance
+- **Drop and recreate** the `JobPortal_New1` database (clean slate)
+- Create all tables, foreign keys, and stored procedures
+- Seed all sample data (employers, jobs, seekers, skills, chat messages)
+- Patch `Web.config` with the correct connection string
+- Launch the app in IIS Express
+
+**All seeded account password: `Pak@123`**
+
+| Role | Usernames |
+|------|-----------|
+| Admin | `admin` |
+| Job Seekers | `alikhan` · `fatimabibi` · `ahmedraza` · `saraahmed` · `zeeshanmalik` |
+| Employers | `systemsltd` · `netsolpk` · `jazzpk` · `ublpk` · `arbisoft` |
+
+> **Requirements:** SQL Server (any edition, incl. Express) + IIS Express (comes with Visual Studio)
+
+---
+
+
 The Job Portal Web Application is a dynamic online platform built using ASP.NET MVC, designed to connect job seekers and employers. It streamlines the job search and recruitment process, providing a feature-rich environment for both job seekers and employers to interact, post job vacancies, apply for jobs, and manage their profiles.
 
 ## Key Features
